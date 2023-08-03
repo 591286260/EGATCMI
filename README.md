@@ -9,6 +9,6 @@ tensorFlow 1.14.0
 Usage: 
 (1) Utilize the sim.py module for the computation of similarity features.
 (2) Generate both positive and negative samples for further analysis.
-(3) Employ the gat  to extract high-level struct features.
+(3) Employ the gat to extract high-level struct features.
 (4) Utilize the 4electra/demo.py script to extract sequential features from the data.
 (5) Apply the lightbgm.py module to make predictions on the CMI.
