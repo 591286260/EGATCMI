@@ -1,47 +1,47 @@
+import numpy as np
 import pandas as pd
 import torch
-from torch.nn.functional import pairwise_distance
-from gensim.models import Word2Vec
+from Bio import SeqIO
 from tqdm import tqdm
-
-circRNA_data = pd.read_csv('circRNA.csv', header=None)
-circRNA_ids = circRNA_data.iloc[:, 0].tolist()
-circRNA_sequences = [seq.split() for seq in circRNA_data.iloc[:, 1].tolist()]
-
-miRNA_data = pd.read_csv('miRNA.csv', header=None)
-miRNA_ids = miRNA_data.iloc[:, 0].tolist()
-miRNA_sequences = [seq.split() for seq in miRNA_data.iloc[:, 1].tolist()]
-
-word2vec_model = Word2Vec(sentences=circRNA_sequences + miRNA_sequences, vector_size=100, window=5, min_count=1, workers=4)
-
-word2vec_model.save('path_to_word2vec_model.bin')
+from concurrent.futures import ThreadPoolExecutor
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-word2vec_model = Word2Vec.load('path_to_word2vec_model.bin')
+print("Device:", device)
 
-circRNA_sim_matrix = []
-for seq1 in tqdm(circRNA_sequences, desc="Calculating circRNA similarities"):
-    seq1_tokens = torch.tensor([word2vec_model.wv.key_to_index[token] for token in seq1 if token in word2vec_model.wv]).to(device)
-    seq1_embedding = torch.mean(word2vec_model_vectors[seq1_tokens], dim=0, keepdim=True)
-    circRNA_sim_matrix.append(sim_row)
+input_file = "lncRNA2009.csv"
+data = pd.read_csv(input_file, header=None)
 
-circRNA_sim_df = pd.DataFrame(circRNA_sim_matrix, index=circRNA_ids, columns=circRNA_ids)
-circRNA_sim_df.to_csv('circRNA_similarities.csv')
+sequences = list(data[1])
 
-miRNA_sim_matrix = []
-for seq1 in tqdm(miRNA_sequences, desc="Calculating miRNA similarities"):
-    seq1_tokens = torch.tensor([word2vec_model.wv.key_to_index[token] for token in seq1 if token in word2vec_model.wv]).to(device)
-    seq1_embedding = torch.mean(word2vec_model_vectors[seq1_tokens], dim=0, keepdim=True)
+lengths = [len(seq) for seq in sequences]
 
-    sim_row = []
-    for seq2 in miRNA_sequences:
-        seq2_tokens = torch.tensor([word2vec_model.wv.key_to_index[token] for token in seq2 if token in word2vec_model.wv]).to(device)
-        seq2_embedding = torch.mean(word2vec_model_vectors[seq2_tokens], dim=0, keepdim=True)
+max_length = max(lengths)
 
-        distance = pairwise_distance(seq1_embedding, seq2_embedding)
-        sim_row.append(distance.item())
+def pad_sequence(seq):
+    num_padding = max_length - len(seq)
+    padded_seq = seq + "N" * num_padding
+    return padded_seq
 
-    miRNA_sim_matrix.append(sim_row)
+padded_sequences = []
+with ThreadPoolExecutor() as executor:
+    with tqdm(total=len(sequences), desc="Padding sequences", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}") as pbar:
+        for seq in sequences:
+            padded_seq = pad_sequence(seq)
+            padded_sequences.append(padded_seq)
+            pbar.update(1)
 
-miRNA_sim_df = pd.DataFrame(miRNA_sim_matrix, index=miRNA_ids, columns=miRNA_ids)
-miRNA_sim_df.to_csv('miRNA_similarities.csv')
+sequences_tensor = torch.tensor([[ord(c) for c in seq] for seq in padded_sequences], device=device, dtype=torch.float32)
+
+matrix = torch.zeros((len(sequences), len(sequences)), device=device)
+with tqdm(total=len(sequences) * (len(sequences) + 1) // 2, desc="Calculating cosine similarity") as pbar:
+    for i in range(len(sequences)):
+        for j in range(i, len(sequences)):
+            a = sequences_tensor[i]
+            b = sequences_tensor[j]
+            cosine_sim = torch.dot(a, b) / (torch.norm(a) * torch.norm(b))
+            matrix[i][j] = cosine_sim
+            matrix[j][i] = cosine_sim
+            pbar.update(1)
+
+df = pd.DataFrame(matrix.cpu().numpy())
+df.to_csv("cosine_lnc_matrix.csv", index=False, header=False)
