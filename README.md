@@ -2,7 +2,7 @@
 ## Abstract
 CircRNA-miRNA interaction plays a crucial role in the gene regulatory network of the cell. Numerous experiments have shown that abnormalities in CMI can impact molecular functions and physiological processes, leading to the occurrence of specific diseases. Current computational models for predicting circRNA-miRNA interaction typically focus on local molecular entity relationships, thereby neglecting inherent molecular attributes and global structural information. To address these limitations, we propose a multi-feature fusion prediction model based on the transformer and graph attention network, named EGATCMI. Specifically, EGATCMI combines transformer architecture with Word2vec to pre-train the sequences of circRNAs and miRNAs, capturing their sequence feature representations and spatial proximity. By leveraging the self-attention mechanism, EGATCMI extracts global structural features from the circRNA-miRNA interaction network. EGATCMI effectively integrates the obtained multi-features and makes predictions. Results demonstrate that EGATCMI outperforms existing methods on two benchmark datasets, and case studies suggest that it holds potential as a reliable tool for candidate screening in biological experiments.
 ## Framework
-![image](EGATCMI_workflow.png)
+![image](workflow.png)
 ## Hardware requirements
 Training the EGATCMI model does not strictly require a GPU, but having one is highly desirable for efficient performance. Therefore, proper installation of GPU drivers, including CUDA integration, is recommended.
 ## Setup Environment
